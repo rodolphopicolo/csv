@@ -3,7 +3,7 @@
 #include <time.h>
 
 int parse(char *path);
-int main(void);
+int main(int argument_count, char **arguments);
 
 struct Field {
 	int row;
@@ -43,8 +43,6 @@ int parse(char *path){
 		fprintf(stderr, "Error 1 - Unable to allocate required memory\n");
 		exit(EXIT_FAILURE);
 	}
-
-	printf("Argumentos: %s\n", path);
 
 	file = fopen(path, "r");
 
@@ -154,17 +152,27 @@ struct Field *initialize_field(struct Field *fields, int *fields_quantity, int c
 	return fields;
 }
 
-int main(void){
+int main(int argument_count, char **arguments){
+
+	if(argument_count < 2){
+		fprintf(stderr, "Error 0 - No file specified");
+		exit(EXIT_FAILURE);
+	}
+
+	char file_name[strlen(arguments[1])];
+
+	strcpy(&file_name, arguments[1]);
+
+	printf("\n\n\n=================================\nCSV Parser\n=================================\n\n\n");
+	printf("File name: %s\n", file_name);
 
 	struct timeval stop, start;
 	long start_microseconds, stop_microseconds;
 	double start_miliseconds, stop_miliseconds;
 
-    printf("\n\n\n=================================\nCSV Parser\n=================================\n\n\n");
-
 
 	gettimeofday(&start, NULL);
-	parse("/home/rodolpho/dev/c/CSVParser/res/short.csv");
+	parse(file_name);
 
 	gettimeofday(&stop, NULL);
 
