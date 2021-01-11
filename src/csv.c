@@ -18,7 +18,6 @@ struct Field {
 	int last_char;
 };
 
-
 struct Field *initialize_field(struct Field *field, int *fields_quantity, int current_field, int fields_block_quantity, int previous_char_position, int row, int column);
 
 int parse(char *path){
@@ -72,7 +71,7 @@ int parse(char *path){
 
 			absolute_position = byte_counter++ * sizeof(char);
 			row_position++;
-			//current_char = buffer[i]
+
 			current_char = *(buffer + i);
 
 			*(csv_file + absolute_position) = current_char;
@@ -82,14 +81,11 @@ int parse(char *path){
 					fprintf(stderr, "Error 3 - Open quotes at absolute position %d, row %d, character %d\n", absolute_position, current_row, row_position);
 					exit(EXIT_FAILURE);
 				}
-//				printf("\nnew line");
-//				printf("\nnew field");
 				current_row++;
-				row_position = 0;
+				row_position = -1;
 				field_in_row = 0;
 				fields = initialize_field(fields, &fields_quantity, ++current_field, fields_block_quantity, absolute_position, current_row, field_in_row);
 			} else if (current_char == ',' && ((*(fields + current_field)).quoted == 0 || (*(fields + current_field)).quotes % 2 == 0)){
-//				printf("\nnew field");
 				fields = initialize_field(fields, &fields_quantity, ++current_field, fields_block_quantity, absolute_position, current_row, ++field_in_row);
 			} else {
 
@@ -112,7 +108,7 @@ int parse(char *path){
 					(*(fields + current_field)).quotes++;
 
 					if((*(fields + current_field)).quotes > 1 && (*(fields + current_field)).quotes % 2 == 1){
-						//Último caracter tem que ter sido aspas.
+						//Last char should be been quotes.
 						if(*(csv_file + absolute_position - 1) != '"'){
 							fprintf(stderr, "Error 4 - Open quotes at absolute position %d, row %d, character %d\n", absolute_position, current_row, row_position);
 							exit(EXIT_FAILURE);
@@ -120,10 +116,16 @@ int parse(char *path){
 					}
 				}
 			}
-
-//			printf("%c", current_char);
 		}
 	}
+
+	fclose(file);
+
+	if(row_position == -1){
+		current_field--;
+	}
+
+
 	if((*(fields + current_field)).quotes % 2 == 1){
 		fprintf(stderr, "Error 5 - Open quotes at absolute position %d, row %d, character %d\n", absolute_position, current_row, row_position);
 		exit(EXIT_FAILURE);
@@ -134,12 +136,26 @@ int parse(char *path){
 		allocated_bytes = byte_counter;
 	}
 
-	fclose(file);
-//	printf("\n\n\ncsv_file:\n[");
-//	for(int i = 0; i < byte_counter; i++){
-//		printf("%c", csv_file[i]);
-//	}
-//	printf("]\n\n\nFim de arquivo.");
+	if(fields_quantity > current_field){
+		fields_quantity = current_field + 1;
+		fields = realloc(fields, sizeof(struct Field)* fields_quantity);
+	}
+
+	struct Field field;
+	for(int i = 0; i < fields_quantity; i++){
+		field = *(fields + i);
+		char buffer[10];
+
+		int bytes = field.last_non_blank_char - field.first_non_blank_char + 1;
+		char message[128];
+
+		snprintf(buffer, 10, "%d", bytes);
+
+		strcpy(message, "\nrow %d, column %d, value %.");
+		strcat(message, buffer);
+		strcat(message, "s");
+		printf(message, field.row, field.column, (csv_file + field.first_non_blank_char));
+	}
 
 	free(csv_file);
 	free(fields);
@@ -178,7 +194,7 @@ int main(int argument_count, char **arguments){
 	long start_microseconds, stop_microseconds;
 	double start_miliseconds, stop_miliseconds;
 
-	for(int i = 0; i < 10; i++){
+//	for(int i = 0; i < 10; i++){
 		gettimeofday(&start, NULL);
 		parse(file_name);
 		gettimeofday(&stop, NULL);
@@ -192,6 +208,6 @@ int main(int argument_count, char **arguments){
 		long elapsed = stop_miliseconds - start_miliseconds;
 
 		printf("\n\n\nElapsed time: %i ms", elapsed);
-	}
+//	}
     return 0;
 }
