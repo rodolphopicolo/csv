@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <string.h>
 
 int parse(char *path);
 int main(int argument_count, char **arguments);
@@ -26,7 +27,7 @@ int parse(char *path){
 	const int resize_block_size = 4096;
 	const int buffer_size = 4096;
 	const int fields_block_quantity = 1024;
-	int fields_quantity;
+	int fields_quantity, field_in_row;
 
 	FILE *file;
 	char buffer[buffer_size];
@@ -51,8 +52,9 @@ int parse(char *path){
 	fields_quantity = fields_block_quantity;
 	struct Field *fields = malloc(sizeof(struct Field)*fields_block_quantity);
 
+	field_in_row = 0;
 	int current_field = 0;
-	fields = initialize_field(fields, &fields_quantity, current_field, fields_block_quantity, -1, 0, 0);
+	fields = initialize_field(fields, &fields_quantity, current_field, fields_block_quantity, -1, 0, current_field);
 
 	current_row = 0;
 	row_position = -1;
@@ -84,10 +86,11 @@ int parse(char *path){
 //				printf("\nnew field");
 				current_row++;
 				row_position = 0;
-				fields = initialize_field(fields, &fields_quantity, ++current_field, fields_block_quantity, absolute_position, current_row, row_position);
+				field_in_row = 0;
+				fields = initialize_field(fields, &fields_quantity, ++current_field, fields_block_quantity, absolute_position, current_row, field_in_row);
 			} else if (current_char == ',' && ((*(fields + current_field)).quoted == 0 || (*(fields + current_field)).quotes % 2 == 0)){
 //				printf("\nnew field");
-				fields = initialize_field(fields, &fields_quantity, ++current_field, fields_block_quantity, absolute_position, current_row, row_position);
+				fields = initialize_field(fields, &fields_quantity, ++current_field, fields_block_quantity, absolute_position, current_row, ++field_in_row);
 			} else {
 
 				if((*(fields + current_field)).first_char == -1){
@@ -139,6 +142,7 @@ int parse(char *path){
 //	printf("]\n\n\nFim de arquivo.");
 
 	free(csv_file);
+	free(fields);
 }
 
 
@@ -159,6 +163,10 @@ int main(int argument_count, char **arguments){
 		exit(EXIT_FAILURE);
 	}
 
+
+	char **csv_file_pointer;
+	struct Field **fields_pointer;
+
 	char file_name[strlen(arguments[1])];
 
 	strcpy(&file_name, arguments[1]);
@@ -170,21 +178,20 @@ int main(int argument_count, char **arguments){
 	long start_microseconds, stop_microseconds;
 	double start_miliseconds, stop_miliseconds;
 
+	for(int i = 0; i < 10; i++){
+		gettimeofday(&start, NULL);
+		parse(file_name);
+		gettimeofday(&stop, NULL);
 
-	gettimeofday(&start, NULL);
-	parse(file_name);
+		start_microseconds = start.tv_sec * 1e6 + start.tv_usec;
+		stop_microseconds = stop.tv_sec * 1e6 + stop.tv_usec;
 
-	gettimeofday(&stop, NULL);
+		start_miliseconds = start_microseconds / 1e3;
+		stop_miliseconds = stop_microseconds / 1e3;
 
-	start_microseconds = start.tv_sec * 1e6 + start.tv_usec;
-	stop_microseconds = stop.tv_sec * 1e6 + stop.tv_usec;
+		long elapsed = stop_miliseconds - start_miliseconds;
 
-	start_miliseconds = start_microseconds / 1e3;
-	stop_miliseconds = stop_microseconds / 1e3;
-
-	long elapsed = stop_miliseconds - start_miliseconds;
-
-	printf("\n\n\nElapsed time: %i ms", elapsed);
-
+		printf("\n\n\nElapsed time: %i ms", elapsed);
+	}
     return 0;
 }
