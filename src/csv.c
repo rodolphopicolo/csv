@@ -3,8 +3,8 @@
 #include <time.h>
 #include <string.h>
 
-int parse(char *path);
-int main(int argument_count, char **arguments);
+//int parse(char *path, struct Field **fields_ptr);
+//int main(int argument_count, char **arguments);
 
 struct Field {
 	int row;
@@ -20,7 +20,7 @@ struct Field {
 
 struct Field *initialize_field(struct Field *field, int *fields_quantity, int current_field, int fields_block_quantity, int previous_char_position, int row, int column);
 
-int parse(char *path){
+int parse(char *path, struct Field **fields_ptr, int *fields_size, char **csv_file_ptr, int *csv_file_size){
 
 	const int initial_block_size = 4096;
 	const int resize_block_size = 4096;
@@ -125,7 +125,6 @@ int parse(char *path){
 		current_field--;
 	}
 
-
 	if((*(fields + current_field)).quotes % 2 == 1){
 		fprintf(stderr, "Error 5 - Open quotes at absolute position %d, row %d, character %d\n", absolute_position, current_row, row_position);
 		exit(EXIT_FAILURE);
@@ -140,6 +139,12 @@ int parse(char *path){
 		fields_quantity = current_field + 1;
 		fields = realloc(fields, sizeof(struct Field)* fields_quantity);
 	}
+
+	*fields_ptr = fields;
+	*csv_file_ptr = csv_file;
+
+	*fields_size = fields_quantity;
+	*csv_file_size = byte_counter;
 
 	struct Field field;
 	for(int i = 0; i < fields_quantity; i++){
@@ -157,8 +162,8 @@ int parse(char *path){
 		printf(message, field.row, field.column, (csv_file + field.first_non_blank_char));
 	}
 
-	free(csv_file);
-	free(fields);
+//	free(csv_file);
+//	free(fields);
 }
 
 
@@ -180,8 +185,12 @@ int main(int argument_count, char **arguments){
 	}
 
 
-	char **csv_file_pointer;
-	struct Field **fields_pointer;
+	char **csv_file_ptr = malloc(sizeof(char));
+	struct Field **fields_ptr = malloc(sizeof(struct Field));
+	int *fields_size, *csv_file_size, size1 = -1, size2 = -1;
+
+	fields_size = &size1;
+	csv_file_size = &size2;
 
 	char file_name[strlen(arguments[1])];
 
@@ -196,7 +205,7 @@ int main(int argument_count, char **arguments){
 
 //	for(int i = 0; i < 10; i++){
 		gettimeofday(&start, NULL);
-		parse(file_name);
+		parse(file_name, fields_ptr, fields_size, csv_file_ptr, csv_file_size);
 		gettimeofday(&stop, NULL);
 
 		start_microseconds = start.tv_sec * 1e6 + start.tv_usec;
