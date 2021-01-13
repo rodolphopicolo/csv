@@ -146,6 +146,11 @@ int parse(char *path, struct Field **fields_ptr, int *fields_size, char **csv_fi
 	*fields_size = fields_quantity;
 	*csv_file_size = byte_counter;
 
+//	free(csv_file);
+//	free(fields);
+}
+
+void show_csv(struct Field *fields, int fields_quantity, char *csv_file){
 	struct Field field;
 	for(int i = 0; i < fields_quantity; i++){
 		field = *(fields + i);
@@ -161,9 +166,6 @@ int parse(char *path, struct Field **fields_ptr, int *fields_size, char **csv_fi
 		strcat(message, "s");
 		printf(message, field.row, field.column, (csv_file + field.first_non_blank_char));
 	}
-
-//	free(csv_file);
-//	free(fields);
 }
 
 
@@ -196,27 +198,38 @@ int main(int argument_count, char **arguments){
 
 	strcpy(&file_name, arguments[1]);
 
-	printf("\n\n\n=================================\nCSV Parser\n=================================\n\n\n");
-	printf("File name: %s\n", file_name);
+	printf("\n\n\nFile name: %s\n", file_name);
 
 	struct timeval stop, start;
 	long start_microseconds, stop_microseconds;
 	double start_miliseconds, stop_miliseconds;
 
-//	for(int i = 0; i < 10; i++){
-		gettimeofday(&start, NULL);
-		parse(file_name, fields_ptr, fields_size, csv_file_ptr, csv_file_size);
-		gettimeofday(&stop, NULL);
 
-		start_microseconds = start.tv_sec * 1e6 + start.tv_usec;
-		stop_microseconds = stop.tv_sec * 1e6 + stop.tv_usec;
+	gettimeofday(&start, NULL);
+	parse(file_name, fields_ptr, fields_size, csv_file_ptr, csv_file_size);
+	gettimeofday(&stop, NULL);
 
-		start_miliseconds = start_microseconds / 1e3;
-		stop_miliseconds = stop_microseconds / 1e3;
+	start_microseconds = start.tv_sec * 1e6 + start.tv_usec;
+	stop_microseconds = stop.tv_sec * 1e6 + stop.tv_usec;
 
-		long elapsed = stop_miliseconds - start_miliseconds;
+	long elapsed_micro = stop_microseconds - start_microseconds;
 
-		printf("\n\n\nElapsed time: %i ms", elapsed);
-//	}
+	float elapsed_mili = elapsed_micro / 1e3;
+
+	struct Field last_field = *(*fields_ptr + *fields_size -1);
+	int rows = last_field.row + 1;
+
+	if(rows < 100){
+		show_csv(*fields_ptr, *fields_size, *csv_file_ptr);
+	} else {
+		printf("\nIf in case of tests, if you want to see the output, choose a csv file with less than 100 rows");
+	}
+	printf("\n\n%d rows parsed in %.2f ms", rows, elapsed_mili);
+
+	free(*fields_ptr);
+	free(*csv_file_ptr);
+
+	free(fields_ptr);
+	free(csv_file_ptr);
     return 0;
 }
