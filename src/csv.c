@@ -4,9 +4,10 @@
 #include <string.h>
 
 //int parse(char *path, struct Field **fields_ptr);
-//int main(int argument_count, char **arguments);
+int main(int argument_count, char **arguments);
+struct CSV_Field *initialize_csv_field(struct CSV_Field *field, int *fields_quantity, int current_field, int fields_block_quantity, int previous_char_position, int row, int column);
 
-struct Field {
+struct CSV_Field {
 	int row;
 	int column;
 	int quoted;
@@ -18,9 +19,13 @@ struct Field {
 	int last_char;
 };
 
-struct Field *initialize_field(struct Field *field, int *fields_quantity, int current_field, int fields_block_quantity, int previous_char_position, int row, int column);
 
-int parse(char *path, struct Field **fields_ptr, int *fields_size, char **csv_file_ptr, int *csv_file_size){
+/*
+ * After execution of parse_csv, it is import to free the memory allocated with:
+ * free(*fields_ptr);
+ * free(*csv_file_ptr);
+ */
+int parse_csv(char *path, struct CSV_Field **fields_ptr, int *fields_size, char **csv_file_ptr, int *csv_file_size){
 
 	const int initial_block_size = 4096;
 	const int resize_block_size = 4096;
@@ -49,11 +54,11 @@ int parse(char *path, struct Field **fields_ptr, int *fields_size, char **csv_fi
 	int byte_counter = 0;
 
 	fields_quantity = fields_block_quantity;
-	struct Field *fields = malloc(sizeof(struct Field)*fields_block_quantity);
+	struct CSV_Field *fields = malloc(sizeof(struct CSV_Field)*fields_block_quantity);
 
 	field_in_row = 0;
 	int current_field = 0;
-	fields = initialize_field(fields, &fields_quantity, current_field, fields_block_quantity, -1, 0, current_field);
+	fields = initialize_csv_field(fields, &fields_quantity, current_field, fields_block_quantity, -1, 0, current_field);
 
 	current_row = 0;
 	row_position = -1;
@@ -84,9 +89,9 @@ int parse(char *path, struct Field **fields_ptr, int *fields_size, char **csv_fi
 				current_row++;
 				row_position = -1;
 				field_in_row = 0;
-				fields = initialize_field(fields, &fields_quantity, ++current_field, fields_block_quantity, absolute_position, current_row, field_in_row);
+				fields = initialize_csv_field(fields, &fields_quantity, ++current_field, fields_block_quantity, absolute_position, current_row, field_in_row);
 			} else if (current_char == ',' && ((*(fields + current_field)).quoted == 0 || (*(fields + current_field)).quotes % 2 == 0)){
-				fields = initialize_field(fields, &fields_quantity, ++current_field, fields_block_quantity, absolute_position, current_row, ++field_in_row);
+				fields = initialize_csv_field(fields, &fields_quantity, ++current_field, fields_block_quantity, absolute_position, current_row, ++field_in_row);
 			} else {
 
 				if((*(fields + current_field)).first_char == -1){
@@ -137,7 +142,7 @@ int parse(char *path, struct Field **fields_ptr, int *fields_size, char **csv_fi
 
 	if(fields_quantity > current_field){
 		fields_quantity = current_field + 1;
-		fields = realloc(fields, sizeof(struct Field)* fields_quantity);
+		fields = realloc(fields, sizeof(struct CSV_Field)* fields_quantity);
 	}
 
 	*fields_ptr = fields;
@@ -145,13 +150,10 @@ int parse(char *path, struct Field **fields_ptr, int *fields_size, char **csv_fi
 
 	*fields_size = fields_quantity;
 	*csv_file_size = byte_counter;
-
-//	free(csv_file);
-//	free(fields);
 }
 
-void show_csv(struct Field *fields, int fields_quantity, char *csv_file){
-	struct Field field;
+void show_csv(struct CSV_Field *fields, int fields_quantity, char *csv_file){
+	struct CSV_Field field;
 	for(int i = 0; i < fields_quantity; i++){
 		field = *(fields + i);
 		char buffer[10];
@@ -169,16 +171,23 @@ void show_csv(struct Field *fields, int fields_quantity, char *csv_file){
 }
 
 
-struct Field *initialize_field(struct Field *fields, int *fields_quantity, int current_field, int fields_block_quantity, int previous_char_position, int row, int column){
+struct CSV_Field *initialize_csv_field(struct CSV_Field *fields, int *fields_quantity, int current_field, int fields_block_quantity, int previous_char_position, int row, int column){
 	if(*fields_quantity < current_field + 1){
 		*fields_quantity += fields_block_quantity;
-		fields = realloc(fields, sizeof(struct Field)* *fields_quantity);
+		fields = realloc(fields, sizeof(struct CSV_Field)* *fields_quantity);
 	}
 
-	*(fields + current_field) = (struct Field) {.row = row, .column = column, .quoted = -1, .quotes = 0, .first_char = -1, .first_non_blank_char = -1, .last_non_blank_char = -1, .last_char = -1};
+	*(fields + current_field) = (struct CSV_Field) {.row = row, .column = column, .quoted = -1, .quotes = 0, .first_char = -1, .first_non_blank_char = -1, .last_non_blank_char = -1, .last_char = -1};
 	return fields;
 }
 
+/*
+ * To run a test:
+ * csv /path/to/csv/file.csv
+ *
+ * if the file has less than 100 rows, these rows will be output, else,
+ * just the total rows will be output with the elapsed time.
+ */
 int main(int argument_count, char **arguments){
 
 	if(argument_count < 2){
@@ -188,7 +197,7 @@ int main(int argument_count, char **arguments){
 
 
 	char **csv_file_ptr = malloc(sizeof(char));
-	struct Field **fields_ptr = malloc(sizeof(struct Field));
+	struct CSV_Field **fields_ptr = malloc(sizeof(struct CSV_Field));
 	int *fields_size, *csv_file_size, size1 = -1, size2 = -1;
 
 	fields_size = &size1;
@@ -206,7 +215,7 @@ int main(int argument_count, char **arguments){
 
 
 	gettimeofday(&start, NULL);
-	parse(file_name, fields_ptr, fields_size, csv_file_ptr, csv_file_size);
+	parse_csv(file_name, fields_ptr, fields_size, csv_file_ptr, csv_file_size);
 	gettimeofday(&stop, NULL);
 
 	start_microseconds = start.tv_sec * 1e6 + start.tv_usec;
@@ -216,7 +225,7 @@ int main(int argument_count, char **arguments){
 
 	float elapsed_mili = elapsed_micro / 1e3;
 
-	struct Field last_field = *(*fields_ptr + *fields_size -1);
+	struct CSV_Field last_field = *(*fields_ptr + *fields_size -1);
 	int rows = last_field.row + 1;
 
 	if(rows < 100){
