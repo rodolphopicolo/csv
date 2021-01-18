@@ -91,6 +91,10 @@ int parse_csv(char *path, struct CSV_Field **fields_ptr, int *fields_size, char 
 				field_in_row = 0;
 				fields = initialize_csv_field(fields, &fields_quantity, ++current_field, fields_block_quantity, absolute_position, current_row, field_in_row);
 			} else if (current_char == ',' && ((*(fields + current_field)).quoted == 0 || (*(fields + current_field)).quotes % 2 == 0)){
+				if((*(fields + current_field)).quotes % 2 == 1){
+					fprintf(stderr, "Error 4 - Open quotes at absolute position %d, row %d, character %d\n", absolute_position, current_row, row_position);
+					exit(EXIT_FAILURE);
+				}
 				fields = initialize_csv_field(fields, &fields_quantity, ++current_field, fields_block_quantity, absolute_position, current_row, ++field_in_row);
 			} else {
 
@@ -105,19 +109,32 @@ int parse_csv(char *path, struct CSV_Field **fields_ptr, int *fields_size, char 
 						(*(fields + current_field)).quoted = 0;
 					}
 				}
+
 				(*(fields + current_field)).last_char = absolute_position;
+
 				if(current_char != ' '){
 					(*(fields + current_field)).last_non_blank_char = absolute_position;
-				}
+				} 
+				
 				if(current_char == '"'){
 					(*(fields + current_field)).quotes++;
 
 					if((*(fields + current_field)).quotes > 1 && (*(fields + current_field)).quotes % 2 == 1){
 						//Last char should be been quotes.
 						if(*(csv_file + absolute_position - 1) != '"'){
-							fprintf(stderr, "Error 4 - Open quotes at absolute position %d, row %d, character %d\n", absolute_position, current_row, row_position);
+							fprintf(stderr, "Error 5 - Open quotes at absolute position %d, row %d, character %d\n", absolute_position, current_row, row_position);
 							exit(EXIT_FAILURE);
 						}
+					}
+				} else {
+					//If current char is not quote, to be sure the last char is not a open quote in the middle of the field,
+					//if the field is quoted, the quantity of quotes should be odd (quotes % 2 == 1), because one quote should be open and others grouped by two;
+					//if the field is NOT quoted, the quantity of quotes should be even (quotes % 2 == 0), because there is just quotes in the middle of the field and all quotes must be grouped by two.
+					if (((*(fields + current_field)).quoted == 1 && (*(fields + current_field)).quotes % 2 == 0)
+						||
+						((*(fields + current_field)).quoted == 0 && (*(fields + current_field)).quotes % 2 == 1)){
+							fprintf(stderr, "Error 6 - Open quotes at absolute position %d, row %d, character %d\n", absolute_position, current_row, row_position);
+							exit(EXIT_FAILURE);
 					}
 				}
 			}
@@ -131,7 +148,7 @@ int parse_csv(char *path, struct CSV_Field **fields_ptr, int *fields_size, char 
 	}
 
 	if((*(fields + current_field)).quotes % 2 == 1){
-		fprintf(stderr, "Error 5 - Open quotes at absolute position %d, row %d, character %d\n", absolute_position, current_row, row_position);
+		fprintf(stderr, "Error 7 - Open quotes at absolute position %d, row %d, character %d\n", absolute_position, current_row, row_position);
 		exit(EXIT_FAILURE);
 	}
 
@@ -205,7 +222,7 @@ int main(int argument_count, char **arguments){
 
 	char file_name[strlen(arguments[1])];
 
-	strcpy(&file_name, arguments[1]);
+	strcpy(file_name, arguments[1]);
 
 	printf("\n\n\nFile name: %s\n", file_name);
 
@@ -231,7 +248,7 @@ int main(int argument_count, char **arguments){
 	if(rows < 100){
 		show_csv(*fields_ptr, *fields_size, *csv_file_ptr);
 	} else {
-		printf("\nIf in case of tests, if you want to see the output, choose a csv file with less than 100 rows");
+		printf("\nIf, in case of tests, you want to see the output, choose a csv file with less than 100 rows");
 	}
 	printf("\n\n%d rows parsed in %.2f ms", rows, elapsed_mili);
 
